@@ -1,100 +1,252 @@
+/*
+Arav Jain
+6/11/2024
+SudokuGame generates a random valid sudoku board for
+a user to solve via entering numbers in the console
+*/
+
+import java.util.Random;
 import java.util.Scanner;
 
 public class SudokuGame {
+    // Size of the Sudoku board
     private static final int SIZE = 9;
+    // Size of the sub-grid
+    private static final int SUBGRID = 3;
+    // Number of cells to remove for the puzzle
+    private static final int REMOVED_CELLS = 40;
+    // The board for the game  
     private static int[][] board = new int[SIZE][SIZE];
+    // The solution board
+    private static int[][] solution = new int[SIZE][SIZE];
 
     public static void main(String[] args) {
+        // The solution board
         initializeBoard();
+        // Print the initial board
         printBoard();
-
+        Scanner scanner = new Scanner(System.in);
+        // Loop until the Sudoku puzzle is solved
         while (!isSudokuSolved()) {
-            int row, col, num;
-            Scanner scanner = new Scanner(System.in);
-
-            System.out.println("Enter row, column, and number (1-9) separated by spaces (e.g., '3 4 5'): ");
-            row = scanner.nextInt() - 1;
-            col = scanner.nextInt() - 1;
-            num = scanner.nextInt();
-
-            if (isValidMove(row, col, num)) {
-                board[row][col] = num;
-                printBoard();
+            System.out.println("Enter 'r' to reveal a cell, or 'e' to enter a number: ");
+            char choice = scanner.next().charAt(0);
+            // Handle the player's choice
+            if (choice == 'r') {
+                // Handle the player's choice
+                revealCell();
+            } else if (choice == 'e') {
+                int row, col, num;
+                System.out.println("Enter row, column, and number (1-9) separated by spaces (e.g., '3 4 5'): ");
+                row = scanner.nextInt() - 1;
+                col = scanner.nextInt() - 1;
+                num = scanner.nextInt();
+                // Handle the player's choice
+                if (isValidMove(row, col, num)) {
+                    board[row][col] = num;
+                    printBoard();
+                } else {
+                    System.out.println("Invalid move! Try again.");
+                }
             } else {
-                System.out.println("Invalid move! Try again.");
+                System.out.println("Invalid choice! Try again.");
             }
         }
 
         System.out.println("Congratulations! Sudoku solved!");
     }
-
+    // Handle the player's choice
     private static void initializeBoard() {
-        // Initialize the Sudoku board
-        int[][] initialBoard = {
-            {5, 3, 0, 0, 7, 0, 0, 0, 0},
-            {6, 0, 0, 1, 9, 5, 0, 0, 0},
-            {0, 9, 8, 0, 0, 0, 0, 6, 0},
-            {8, 0, 0, 0, 6, 0, 0, 0, 3},
-            {4, 0, 0, 8, 0, 3, 0, 0, 1},
-            {7, 0, 0, 0, 2, 0, 0, 0, 6},
-            {0, 6, 0, 0, 0, 0, 2, 8, 0},
-            {0, 0, 0, 4, 1, 9, 0, 0, 5},
-            {0, 0, 0, 0, 8, 0, 0, 7, 9}
-        };
-
-        // Copy initial board to the game board
+        // Generate a complete solution
+        generateSolution();
+        // Copy solution to board and remove cells to create the puzzle
         for (int i = 0; i < SIZE; i++) {
-            System.arraycopy(initialBoard[i], 0, board[i], 0, SIZE);
+            System.arraycopy(solution[i], 0, board[i], 0, SIZE);
+        }
+        // Handle the player's choice
+        removeCells();
+    }
+    // Generates a complete Sudoku solution
+    private static void generateSolution() {
+        // Fill the diagonal 3x3 sub-grids
+        fillDiagonalSubgrids();
+        // Fill the remaining cells
+        fillRemaining(0, SUBGRID);
+        // Copy the generated solution
+        for (int i = 0; i < SIZE; i++) {
+            System.arraycopy(board[i], 0, solution[i], 0, SIZE);
+        }
+    }
+    
+    // Fills the diagonal 3x3 sub-grids
+    private static void fillDiagonalSubgrids() {
+        for (int i = 0; i < SIZE; i += SUBGRID) {
+            // Fill each diagonal sub-grid
+            fillSubgrid(i, i);
+        }
+    }
+    
+    // Fills a specific 3x3 sub-grid
+    private static void fillSubgrid(int row, int col) {
+        Random rand = new Random();
+        for (int i = 0; i < SUBGRID; i++) {
+            for (int j = 0; j < SUBGRID; j++) {
+                int num;
+                // Generate a random number and check if it is safe in the sub-grid
+                do {
+                    num = rand.nextInt(SIZE) + 1;
+                } while (!isSafeInSubgrid(row, col, num));
+                // Place the number in the sub-grid
+                board[row + i][col + j] = num;
+            }
+        }
+    }
+    
+    // Place the number in the sub-grid
+    private static boolean isSafeInSubgrid(int rowStart, int colStart, int num) {
+        for (int i = 0; i < SUBGRID; i++) {
+            for (int j = 0; j < SUBGRID; j++) {
+                if (board[rowStart + i][colStart + j] == num) {
+                    // Number already exists in the sub-grid
+                    return false;
+                }
+            }
+        }
+        // Number is safe to place
+        return true;
+    }
+   
+    // Fills the remaining cells of the board
+    private static boolean fillRemaining(int i, int j) {
+        if (j >= SIZE && i < SIZE - 1) {
+            i++;
+            j = 0;
+        }
+        if (i >= SIZE && j >= SIZE) {
+            return true;
+        }
+        if (i < SUBGRID) {
+            if (j < SUBGRID) {
+                j = SUBGRID;
+            }
+        } else if (i < SIZE - SUBGRID) {
+            if (j == (i / SUBGRID) * SUBGRID) {
+                j += SUBGRID;
+            }
+        } else {
+            if (j == SIZE - SUBGRID) {
+                i++;
+                j = 0;
+                if (i >= SIZE) {
+                    return true;
+                }
+            }
+        }
+
+        for (int num = 1; num <= SIZE; num++) {
+            // Place the number if it is safe
+            if (isSafe(i, j, num)) {
+                board[i][j] = num;
+                // Continue to fill the next cell
+                if (fillRemaining(i, j + 1)) {
+                    return true;
+                }
+                // Reset the cell if no number is safe
+                board[i][j] = 0;
+            }
+        }
+        return false;
+    }
+    // Checks if a number is safe to place in a cell
+    private static boolean isSafe(int i, int j, int num) {
+        return isSafeInRow(i, num) && isSafeInCol(j, num) && isSafeInSubgrid(i - i % SUBGRID, j - j % SUBGRID, num);
+    }
+    // Checks if a number is safe to place in a row
+    private static boolean isSafeInRow(int row, int num) {
+        for (int j = 0; j < SIZE; j++) {
+            if (board[row][j] == num) {
+                // Number already exists in the row
+                return false;
+            }
+        }
+        // Number is safe to place
+        return true;
+    }
+    
+    // Checks if a number is safe to place in a column
+    private static boolean isSafeInCol(int col, int num) {
+        for (int i = 0; i < SIZE; i++) {
+            if (board[i][col] == num) {
+                // Number already exists in the column
+                return false;
+            }
+        }
+        // Number is safe to place
+        return true;
+    }
+
+    // Removes cells from the board to create a puzzle
+    private static void removeCells() {
+        Random rand = new Random();
+        int count = REMOVED_CELLS;
+        while (count != 0) {
+            int cellId = rand.nextInt(SIZE * SIZE);
+            int i = cellId / SIZE;
+            int j = cellId % SIZE;
+            if (board[i][j] != 0) {
+                // Remove the cell
+                board[i][j] = 0;
+                count--;
+            }
         }
     }
 
+    // Prints the current state of the board
     private static void printBoard() {
-        System.out.println("-------------");
+        System.out.println("-------------------------");
         for (int i = 0; i < SIZE; i++) {
             for (int j = 0; j < SIZE; j++) {
                 if (j % 3 == 0) {
                     System.out.print("| ");
                 }
-                System.out.print(board[i][j] + " ");
+                // Print a dot for empty cells
+                System.out.print(board[i][j] == 0 ? ". " : board[i][j] + " ");
             }
             System.out.println("|");
             if ((i + 1) % 3 == 0) {
-                System.out.println("-------------");
+                System.out.println("-------------------------");
             }
         }
     }
+    
+    // Reveals the value of a specific cell
+    private static void revealCell() {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Enter row and column to reveal (1-9) separated by spaces (e.g., '3 4'): ");
+        int row = scanner.nextInt() - 1;
+        int col = scanner.nextInt() - 1;
 
+        if (board[row][col] == 0) {
+            // Reveal the cell's value from the solution
+            board[row][col] = solution[row][col];
+            // Print the board after revealing the cell
+            printBoard();
+        } else {
+            System.out.println("Cell is already filled!");
+        }
+    }
+   
+    // Checks if a move is valid
     private static boolean isValidMove(int row, int col, int num) {
-        // Check if the number is already present in the row
-        for (int i = 0; i < SIZE; i++) {
-            if (board[row][i] == num) {
-                return false;
-            }
+        if (board[row][col] != 0) {
+            // Cell is already filled
+            return false;
         }
-
-        // Check if the number is already present in the column
-        for (int i = 0; i < SIZE; i++) {
-            if (board[i][col] == num) {
-                return false;
-            }
-        }
-
-        // Check if the number is already present in the 3x3 grid
-        int startRow = row - row % 3;
-        int startCol = col - col % 3;
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                if (board[i + startRow][j + startCol] == num) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
+        // Check if the number is safe to place
+        return isSafe(row, col, num);
     }
-
+    
+    // Checks if the Sudoku puzzle is solved
     private static boolean isSudokuSolved() {
-        // Check if the Sudoku board is completely filled
         for (int i = 0; i < SIZE; i++) {
             for (int j = 0; j < SIZE; j++) {
                 if (board[i][j] == 0) {
